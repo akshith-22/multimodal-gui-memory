@@ -1,0 +1,29 @@
+.DS_Store
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.env
+.env.*
+!.env.example
+*.before-*
+runs/
+*.log
+
+# Include only Mobile-Agent-v3 from the upstream collection.
+/MobileAgent/*
+!/MobileAgent/Mobile-Agent-v3/
+!/MobileAgent/LICENSE*
+!/MobileAgent/NOTICE*
+
+# Exclude unrelated v3 components and presentation assets.
+/MobileAgent/Mobile-Agent-v3/assets/
+/MobileAgent/Mobile-Agent-v3/mobile_v3/
+/MobileAgent/Mobile-Agent-v3/os_world_v3/
+/MobileAgent/Mobile-Agent-v3/cookbook/
+
+# Upstream launch scripts pending credential review.
+/AndroidReality/recovery/run_ma3_random_perturb.sh
+/AndroidReality/perturbation/run_ma3_random_perturb.sh
+/MobileAgent/Mobile-Agent-v3/android_world_v3/run_ma3.sh
+/MobileAgent/Mobile-Agent-v3/android_world_v3/run_guiowl.sh
