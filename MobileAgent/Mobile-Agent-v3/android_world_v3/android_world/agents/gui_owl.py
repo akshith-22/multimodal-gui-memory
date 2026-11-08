@@ -33,6 +33,7 @@ from io import BytesIO
 from android_world.agents.coordinate_resize import update_image_size_
 import traceback
 from android_world.agents.episodic_memory import EpisodicMemory
+from android_world.agents.perturbation_memory import PerturbationMemory
 
 m3a_prompt = '''Instruction
 You are an agent who can operate an Android phone on behalf of a user. Based on user’s goal/request, you may
@@ -167,10 +168,12 @@ class GUIOwl(base_agent.EnvironmentInteractingAgent):
     self.output_list = []
     self._response = []
     self.task_name = {}
-    self.episodic_memory = EpisodicMemory(
-        os.environ.get('GUI_MEMORY_MODE', 'baseline'), self.output_path,
-        int(os.environ.get('GUI_MEMORY_TOP_K', '2')),
-    )
+    memory_mode = os.environ.get('GUI_MEMORY_MODE', 'baseline')
+    memory_top_k = int(os.environ.get('GUI_MEMORY_TOP_K', '2'))
+    if memory_mode == 'perturbation':
+      self.episodic_memory = PerturbationMemory(self.output_path, self.vllm, memory_top_k)
+    else:
+      self.episodic_memory = EpisodicMemory(memory_mode, self.output_path, memory_top_k)
 
   def reset(self, go_home: bool = False) -> None:
     super().reset(go_home)
@@ -264,6 +267,8 @@ class GUIOwl(base_agent.EnvironmentInteractingAgent):
   
     stage2_history = ''
     for idx, his in enumerate(self._summarys):
+        if idx < getattr(self.episodic_memory, "history_start", 0):
+            continue
         if his is not None:
             stage2_history += 'Step ' + str(idx + 1) + ': ' + str(his.replace('\n', '').replace('"', '')) + '; '
     stage2_user_prompt = goal
