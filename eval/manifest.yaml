@@ -1,0 +1,166 @@
+# Fixed evaluation manifest for the multimodal GUI memory project.
+#
+# Purpose: pin exactly which task instances, conditions, configurations,
+# budgets, and repetitions are used, so that every configuration (including
+# the external comparator) is evaluated on the same inputs.
+#
+# Task instances are generated deterministically by AndroidWorld from
+# (task name, --task_random_seed, --n_task_combinations). The goals listed
+# below were generated offline with this repository's code and verified to be
+# repeatable and independent of which other tasks are in the same run.
+# If a generated goal ever differs from the one recorded here, stop and report
+# it: the instance is no longer the one this manifest fixes.
+
+manifest_version: 1
+status: draft            # change to "frozen" together with frozen_commit
+frozen_commit: null      # fill in with the agreed commit before held-out runs
+
+# ---------------------------------------------------------------------------
+# Settings shared by every run. Do not vary these between configurations.
+# ---------------------------------------------------------------------------
+fixed_settings:
+  suite_family: android_world
+  agent_name: gui_owl
+  model: qwen3-vl-32b
+  base_url: https://openai.rc.asu.edu/v1
+  guiowl_coordinate_format: qwen-vl
+  guiowl_temperature: 0.0            # run_ma3.py default
+  GUI_MEMORY_TOP_K: 2
+  emulator:
+    avd: AndroidWorldAvd
+    device_profile: Pixel 6
+    android: "13 (API 33)"
+    screen: 1080x2400
+    density: 420
+  font_scale_before_each_run: 1.0    # adb shell settings put system font_scale 1.0
+  record_per_run:
+    - commit (git rev-parse HEAD)
+    - host OS and emulator ABI (arm64-v8a or x86_64)
+    - task, seed, instance index, goal text
+    - condition, configuration, repetition, step budget
+    - evaluator result line, episode length, runtime
+    - run directory under runs/
+
+# ---------------------------------------------------------------------------
+# Configurations compared.
+# ---------------------------------------------------------------------------
+configurations:
+  baseline:
+    GUI_MEMORY_MODE: baseline
+  multimodal:
+    GUI_MEMORY_MODE: multimodal
+  perturbation_aware:
+    GUI_MEMORY_MODE: perturbation
+  comparator:
+    note: External mobile multimodal-memory system selected by Mukund.
+          Must use the same task instances, conditions, budgets, and model.
+# The text-memory mode stays available for ablations but is not part of the
+# matched comparison (consistent with the Milestone 2 report).
+
+# ---------------------------------------------------------------------------
+# Conditions.
+# ---------------------------------------------------------------------------
+conditions:
+  clean:
+    flags:
+      mdp_font_size_enable: false
+      mdp_state_reset_enable: false
+    step_budget: default             # 10 x task complexity; unset GUI_DIAGNOSTIC_MAX_STEPS
+  state_reset:
+    flags:
+      mdp_font_size_enable: false
+      mdp_state_reset_enable: true
+      mdp_state_reset_trigger_steps: 5
+      mdp_state_reset_return_home: true
+    step_budget: double_default      # set GUI_DIAGNOSTIC_MAX_STEPS per task (see budgets)
+  small_font:                        # secondary; run only if time allows
+    flags:
+      mdp_font_size_enable: true
+      mdp_font_size_activation_mode: on_reset
+      mdp_font_size_scale: 0.82
+      mdp_font_size_restore_on_close: true
+      mdp_state_reset_enable: false
+    step_budget: default
+
+# GUI_DIAGNOSTIC_MAX_STEPS overrides the budget for every task in a run, so
+# run one task per invocation when using double_default.
+budgets:                 # default = int(10 x complexity)
+  ContactsAddContact:        {complexity: 1.2, default: 12, double_default: 24}
+  ExpenseAddSingle:          {complexity: 1.2, default: 12, double_default: 24}
+  MarkorCreateNote:          {complexity: 1.6, default: 16, double_default: 32}
+  RecipeAddSingleRecipe:     {complexity: 2.4, default: 24, double_default: 48}
+  SimpleCalendarAddOneEvent: {complexity: 3.4, default: 34, double_default: 68}
+
+# ---------------------------------------------------------------------------
+# Development / held-out split.
+#
+# Development: may be run any number of times while changing code or prompts.
+# Held-out: run only after status is "frozen", once per planned repetition.
+# No code, prompt, or threshold may change because of held-out results.
+# ---------------------------------------------------------------------------
+splits:
+  development:
+    task_random_seed: 30
+    n_task_combinations: 1
+    instances:
+      - task: ContactsAddContact
+        index: 0
+        goal: "Create a new contact for Hugo Pereira. Their number is +13920741751."
+        note: Instance used in all pilot and Milestone 2 runs.
+      - task: ExpenseAddSingle
+        index: 0
+        goal: "Add the following expenses into the pro expense:\nExpense: Therapy Sessions\n amount_dollars: $307.01\n category_name: Health Care\n note: I may repeat this\n"
+      - task: MarkorCreateNote
+        index: 0
+        goal: "Create a new note in Markor named 2023_01_26_wise_yacht.md with the following text: Ignorance is bliss."
+
+  held_out:
+    task_random_seed: 101
+    n_task_combinations: 1
+    instances:
+      # Same task types as development, new parameters.
+      - task: ContactsAddContact
+        index: 0
+        goal: "Create a new contact for Sophie Ahmed. Their number is +12136247493."
+      - task: ExpenseAddSingle
+        index: 0
+        goal: "Add the following expenses into the pro expense:\nname|amount_dollars|category_name|note\nCrowdfunding|$161.68|Donation|A need"
+      - task: MarkorCreateNote
+        index: 0
+        goal: "Create a new note in Markor named warm_unicorn_34VS.txt with the following text: The early bird catches the worm."
+      # Task types never used during development.
+      - task: RecipeAddSingleRecipe
+        index: 0
+        goal: "Add the following recipes into the Broccoli app:\nRecipe: Grilled Cheese with Tomato and Basil\n description: An ideal recipe for experimenting with different flavors and ingredients.\n servings: 1 serving\n preparationTime: 3 hrs\n ingredients: per individual taste\n directions: Butter bread slices, layer with cheese, tomato slices, and basil. Grill until bread is toasted and cheese is melted. Try adding a pinch of your favorite spices for extra flavor.\n"
+      - task: SimpleCalendarAddOneEvent
+        index: 0
+        goal: "In Simple Calendar Pro, create a calendar event on 2023-10-30 at 12h with the title 'Catch up on Budget Planning' and the description 'We will review contract details.'. The event should last for 45 mins."
+
+# ---------------------------------------------------------------------------
+# Run plan.
+# ---------------------------------------------------------------------------
+repetitions_per_cell: 3
+
+plan:
+  primary:
+    split: held_out
+    conditions: [clean, state_reset]
+    configurations: [baseline, multimodal, perturbation_aware, comparator]
+    episodes: 5 instances x 2 conditions x 4 configurations x 3 reps = 120
+  secondary:
+    split: held_out
+    conditions: [small_font]
+    configurations: [baseline, multimodal, perturbation_aware]
+    episodes: 5 x 1 x 3 x 3 = 45
+  development_checks:
+    split: development
+    conditions: [clean, state_reset]
+    note: Unlimited during development; report separately and never pooled with held-out results.
+
+reporting:
+  - Report clean and state_reset separately; never pool conditions.
+  - Report default and double_default budgets as separate conditions.
+  - Success counts only when the AndroidWorld evaluator prints "Task Successful".
+  - Classify API failures (for example HTTP 413 or timeouts) as infrastructure
+    failures, rerun them, and list them; do not count them as agent failures.
+  - Per trial: success, episode length, runtime, and any invalidation events.
