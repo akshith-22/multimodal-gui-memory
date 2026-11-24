@@ -69,6 +69,11 @@ def _find_adb_directory() -> str:
       os.path.expanduser('~/Library/Android/sdk/platform-tools/adb'),
       os.path.expanduser('~/Android/Sdk/platform-tools/adb'),
       '/root/android/android_sdk/platform-tools/adb',
+      # Windows default Android SDK location.
+      os.path.join(
+          os.environ.get('LOCALAPPDATA', ''),
+          'Android', 'Sdk', 'platform-tools', 'adb.exe',
+      ),
   ]
   for path in potential_paths:
     if os.path.isfile(path):
